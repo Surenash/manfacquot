@@ -103,12 +103,33 @@ class DesignCreateSerializer(serializers.ModelSerializer):
     def validate_s3_file_key(self, value):
         if not value or len(value.strip()) == 0:
             raise serializers.ValidationError("s3_file_key cannot be empty and must be provided.")
-        # Add more sophisticated validation if needed, e.g., check expected path structure
-        # for the current user (requires access to request.user from context)
-        # user = self.context['request'].user
-        # expected_prefix = f"{settings.AWS_S3_DESIGNS_UPLOAD_PREFIX.strip('/')}/{user.id}/"
-        # if not value.startswith(expected_prefix):
-        #     raise serializers.ValidationError("s3_file_key does not match expected user path.")
+
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
+            # This case should ideally be caught by view permissions, but defensive check here.
+            raise serializers.ValidationError("User context is not available for s3_file_key validation.")
+
+        from django.conf import settings # Import settings locally
+        user = request.user
+        expected_prefix = f"{settings.AWS_S3_DESIGNS_UPLOAD_PREFIX.strip('/')}/{user.id}/"
+
+        if not value.startswith(expected_prefix):
+            raise serializers.ValidationError(
+                f"Invalid s3_file_key. Key does not match expected path for user. Expected prefix: '{expected_prefix}'"
+            )
+
+        # Further validation: ensure the part after user.id is a UUID (from DesignUploadURLView)
+        # Example key: "uploads/designs/user_id/uuid.extension"
+        try:
+            key_without_prefix = value[len(expected_prefix):]
+            uuid_part = key_without_prefix.split('.')[0]
+            import uuid # Import uuid locally
+            uuid.UUID(uuid_part, version=4)
+        except (ValueError, IndexError) as e:
+            raise serializers.ValidationError(
+                f"Invalid s3_file_key structure. Expected 'prefix/{{user_id}}/{{uuid}}.extension'. Error: {e}"
+            )
+
         return value
 
     def create(self, validated_data):

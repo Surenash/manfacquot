@@ -333,26 +333,26 @@ class GenerateQuotesView(APIView):
                     logger.info(f"Manufacturer {mf_profile.user.email} has already quoted design {design.id}. Skipping.")
                     continue
 
-                pricing_details = calculate_quote_price(design=design, manufacturer=mf_profile)
+                pricing_details = calculate_quote_price(design=design, manufacturer=mf_profile, quantity=design.quantity)
 
-                if pricing_details.price_usd is not None and not pricing_details.errors:
+                if pricing_details["price_usd"] is not None and not pricing_details["errors"]:
                     try:
                         quote = Quote.objects.create(
                             design=design,
                             manufacturer=mf_profile.user, # Link to the User model instance
-                            price_usd=pricing_details.price_usd,
-                            estimated_lead_time_days=pricing_details.estimated_lead_time_days,
-                            notes=f"Automated quote based on design analysis. Calculation details: {pricing_details.calculation_details}",
+                            price_usd=pricing_details["price_usd"],
+                            estimated_lead_time_days=pricing_details["estimated_lead_time_days"],
+                            notes=f"Automated quote. Details: {pricing_details['calculation_details']}",
                             # status defaults to PENDING
                         )
                         generated_quotes.append(quote)
                         quotes_created_count += 1
                     except Exception as e: # Catch DB errors or other unexpected issues during Quote creation
                         logger.error(f"Error creating Quote object for design {design.id}, mf {mf_profile.user.email}: {e}")
-                        errors_by_manufacturer[str(mf_profile.user.id)] = f"Error saving quote: {str(e)}"
+                        errors_by_manufacturer[str(mf_profile.user.id)] = [f"Error saving quote: {str(e)}"]
                 else:
-                    logger.warning(f"Could not calculate price for design {design.id} by mf {mf_profile.user.email}. Errors: {pricing_details.errors}")
-                    errors_by_manufacturer[str(mf_profile.user.id)] = pricing_details.errors
+                    logger.warning(f"Could not calculate price for design {design.id} by mf {mf_profile.user.email}. Errors: {pricing_details['errors']}")
+                    errors_by_manufacturer[str(mf_profile.user.id)] = pricing_details['errors']
 
             # Update design status to QUOTED if at least one quote was generated successfully
             if quotes_created_count > 0 and design.status == DesignModelStatus.ANALYSIS_COMPLETE:

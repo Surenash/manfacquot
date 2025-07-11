@@ -42,19 +42,39 @@ def perform_stl_analysis(file_path):
 
     logger.info(f"STL Analysis: Starting for file {file_path}...")
 
+    # Add check for file existence and size
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        logger.error(f"STL Analysis: File {file_path} does not exist or is empty.")
+        raise ValueError(f"STL file {os.path.basename(file_path)} does not exist or is empty.")
+
     try:
         main_mesh = stl_mesh.Mesh.from_file(file_path)
+        if main_mesh is None:
+            # This can happen for empty or severely malformed STL files
+            logger.error(f"STL Analysis: Mesh.from_file returned None for {file_path}. File might be empty or critically malformed.")
+            raise ValueError(f"STL file {os.path.basename(file_path)} could not be processed (possibly empty or critically malformed).")
     except Exception as e: # Catch broad exceptions from stl library loading
         logger.error(f"STL Analysis: Failed to load/parse STL file {file_path}: {e}")
+        # Attempt to give a more specific error if it's the "cannot unpack" issue.
+        if "cannot unpack non-iterable NoneType object" in str(e):
+             logger.error(f"STL Analysis: Encountered internal numpy-stl error (possibly related to unpacking None) for {file_path}.")
+             raise ValueError(f"Internal error during STL parsing of {os.path.basename(file_path)}: {e}")
         raise ValueError(f"Invalid or corrupt STL file: {os.path.basename(file_path)}") from e
 
     # Volume: numpy-stl returns volume in units^3 of the STL file. Assuming mm^3.
     # Convert to cm^3 (1 cm^3 = 1000 mm^3)
+    if not hasattr(main_mesh, 'volume') or main_mesh.volume is None: # Updated check
+        logger.error(f"STL Analysis: main_mesh.volume is missing or None for {file_path}.")
+        raise ValueError(f"Could not determine volume for STL file {os.path.basename(file_path)}.")
     volume_mm3 = main_mesh.volume
     volume_cm3 = Decimal(str(volume_mm3)) / Decimal("1000.0")
 
     # Bounding Box (bbox_mm): Get min/max extents and calculate dimensions.
     # mesh.min_ and mesh.max_ give [xmin, ymin, zmin] and [xmax, ymax, zmax]
+    if not hasattr(main_mesh, 'min_') or not hasattr(main_mesh, 'max_') or \
+       main_mesh.min_ is None or main_mesh.max_ is None: # Updated check
+        logger.error(f"STL Analysis: main_mesh.min_ or main_mesh.max_ is missing or None for {file_path}.")
+        raise ValueError(f"Could not determine bounding box for STL file {os.path.basename(file_path)}.")
     min_coords = main_mesh.min_
     max_coords = main_mesh.max_
     bbox_mm = [
@@ -63,11 +83,17 @@ def perform_stl_analysis(file_path):
 
     # Surface Area: numpy-stl returns area in units^2. Assuming mm^2.
     # Convert to cm^2 (1 cm^2 = 100 mm^2)
+    if not hasattr(main_mesh, 'area') or main_mesh.area is None: # Updated check
+        logger.error(f"STL Analysis: main_mesh.area is missing or None for {file_path}.")
+        raise ValueError(f"Could not determine surface area for STL file {os.path.basename(file_path)}.")
     surface_area_mm2 = main_mesh.area
     surface_area_cm2 = Decimal(str(surface_area_mm2)) / Decimal("100.0")
 
     # Complexity Score (heuristic: number of triangles / 10000, capped at 1.0)
     # This is a very basic heuristic. A more sophisticated score would be better.
+    if not hasattr(main_mesh, 'vectors') or main_mesh.vectors is None: # Updated check
+        logger.error(f"STL Analysis: main_mesh.vectors is missing or None for {file_path}.")
+        raise ValueError(f"Could not determine triangles for STL file {os.path.basename(file_path)}.")
     num_triangles = main_mesh.vectors.shape[0]
     complexity_score = min(Decimal(str(num_triangles)) / Decimal("10000.0"), Decimal("1.0"))
 
@@ -105,28 +131,34 @@ def analyze_cad_file(self, design_id):
             )
 
             # Create a temporary file to download the S3 object
-            # tempfile.NamedTemporaryFile ensures the file is deleted when closed.
-            with tempfile.NamedTemporaryFile(delete=True, suffix=os.path.splitext(design.s3_file_key)[1]) as tmp_file:
-                local_file_path = tmp_file.name
-                logger.info(f"Downloading s3://{settings.AWS_STORAGE_BUCKET_NAME}/{design.s3_file_key} to {local_file_path}")
+            # Create a temporary file to download the S3 object
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(design.s3_file_key)[1])
+            local_file_path = tmp_file.name
+            tmp_file.close() # Close the file handle immediately
 
+            file_downloaded_and_processed_successfully = False
+
+            try:
+                logger.info(f"Downloading s3://{settings.AWS_STORAGE_BUCKET_NAME}/{design.s3_file_key} to {local_file_path}")
                 try:
                     s3_client.download_file(settings.AWS_STORAGE_BUCKET_NAME, design.s3_file_key, local_file_path)
                     logger.info(f"Successfully downloaded {design.s3_file_key}.")
                 except ClientError as e:
                     if e.response['Error']['Code'] == '404':
                         logger.error(f"S3 file not found for Design ID {design_id}: s3://{settings.AWS_STORAGE_BUCKET_NAME}/{design.s3_file_key}")
-                        design.status = DesignStatus.ANALYSIS_FAILED # Or a more specific error status
+                        design.status = DesignStatus.ANALYSIS_FAILED
                         design.geometric_data = {"error": "S3 file not found."}
-                        design.save()
-                        # Do not retry for 404 as file won't appear magically
-                        return f"Failed: S3 file not found for Design {design_id}."
-                    else:
+                        design.save() # Save status immediately for 404
+                        # Must remove tmp file before returning
+                        if os.path.exists(local_file_path):
+                            os.remove(local_file_path)
+                        return f"Failed: S3 file not found for Design {design_id}." # Specific return for 404
+                    else: # Other S3 client errors
                         logger.error(f"S3 ClientError downloading file for Design ID {design_id}: {e}")
-                        # Retry for other S3 client errors (e.g., network issues)
-                        raise self.retry(exc=e) from e
+                        raise self.retry(exc=e) from e # Retry for other S3 client errors
 
                 # --- Perform CAD Analysis ---
+                # This part is reached only if download was successful
                 file_extension = os.path.splitext(design.s3_file_key)[1].lower()
                 analysis_function = None
 
@@ -137,27 +169,20 @@ def analyze_cad_file(self, design_id):
                         logger.error("STL file received, but numpy-stl library is not available.")
                         design.status = DesignStatus.ANALYSIS_FAILED
                         design.geometric_data = {"error": "STL processing library not available."}
-
                 elif file_extension in ['.step', '.stp']:
                     if STEPUTILS_AVAILABLE:
                         try:
-                            # Attempt to parse the STEP file to validate its structure.
-                            # steputils doesn't easily give volume/bbox/area for complex B-Reps.
                             step_file = steputils.p21.STYLED_STEP_FILE(local_file_path)
-                            if step_file: # Basic check if parsing was successful
+                            if step_file:
                                 logger.info(f"STEP file {design.s3_file_key} validated successfully by steputils.")
                                 design.geometric_data = {
                                     "validation_engine": f"steputils-v{steputils.version if hasattr(steputils, 'version') else 'unknown'}",
-                                    "status_message": "STEP file validated. Detailed geometric analysis (volume, bbox, area) not available with current tools.",
-                                    "complexity_score": 0.1 # Placeholder for validated but not fully analyzed
+                                    "status_message": "STEP file validated. Detailed geometric analysis not available.",
+                                    "complexity_score": 0.1
                                 }
-                                # Keep status PENDING_ANALYSIS or move to a new "VALIDATED_NO_GEOM" status?
-                                # For now, if it validates but no geom, treat as ANALYSIS_FAILED for pricing.
-                                # Or, ANALYSIS_COMPLETE but with a note that geometric_data is limited.
-                                # Let's assume for now that if we can't get volume/bbox, it's effectively failed for quoting.
-                                design.status = DesignStatus.ANALYSIS_FAILED # Or a new status
+                                design.status = DesignStatus.ANALYSIS_FAILED
                                 design.geometric_data["error"] = "STEP file validated, but detailed geometric properties could not be extracted."
-                            else: # Should not happen if from_file doesn't raise error but returns None
+                            else:
                                 raise ValueError("steputils parsing returned None.")
                         except Exception as step_exc:
                             logger.error(f"STEP file analysis/validation failed for Design ID {design_id} using steputils: {step_exc}")
@@ -167,60 +192,76 @@ def analyze_cad_file(self, design_id):
                         logger.error("STEP file received, but steputils library is not available.")
                         design.status = DesignStatus.ANALYSIS_FAILED
                         design.geometric_data = {"error": "STEP processing library (steputils) not available."}
-
                 elif file_extension in ['.iges', '.igs']:
                     logger.warning(f"IGES file type ('{file_extension}') received for Design ID {design_id}, but no IGES library is available.")
                     design.status = DesignStatus.ANALYSIS_FAILED
                     design.geometric_data = {"error": "IGES file analysis is not supported (no library)."}
-
-                else: # Other unknown extensions
+                else:
                     logger.warning(f"Unsupported file type '{file_extension}' for Design ID {design_id}.")
                     design.status = DesignStatus.ANALYSIS_FAILED
                     design.geometric_data = {"error": f"Unsupported file type: {file_extension}."}
 
-                # This block only runs if analysis_function was set (i.e. for STL currently)
-                if analysis_function:
-                    try:
-                        geometric_data = analysis_function(local_file_path) # This is perform_stl_analysis
-                        design.geometric_data = geometric_data
-                        design.status = DesignStatus.ANALYSIS_COMPLETE
-                        logger.info(f"CAD analysis successful for Design ID: {design_id}. Status set to ANALYSIS_COMPLETE.")
-                    except ValueError as ve: # Catch parsing/analysis errors from the analysis function
-                        logger.error(f"CAD analysis failed for Design ID {design_id}: {ve}")
-                        design.status = DesignStatus.ANALYSIS_FAILED
-                        design.geometric_data = {"error": f"Analysis failed: {str(ve)}"}
-                        # Do not retry for file content/format errors.
-                    except RuntimeError as rte: # Catch library availability errors
-                         logger.error(f"CAD analysis runtime error for Design ID {design_id}: {rte}")
-                         design.status = DesignStatus.ANALYSIS_FAILED
-                         design.geometric_data = {"error": f"Analysis runtime error: {str(rte)}"}
-                    except Exception as analysis_exc: # Catch any other unexpected analysis errors
-                        logger.error(f"Unexpected CAD analysis error for Design ID {design_id}: {analysis_exc}")
-                        design.status = DesignStatus.ANALYSIS_FAILED
-                        design.geometric_data = {"error": f"Unexpected analysis error: {str(analysis_exc)}"}
-                        # Potentially retry for truly unexpected errors, but depends on their nature.
-                        # For now, marking as failed. If self.retry is called, it should be conditional.
+                if analysis_function: # Primarily for STL
+                    geometric_data = analysis_function(local_file_path)
+                    design.geometric_data = geometric_data
+                    design.status = DesignStatus.ANALYSIS_COMPLETE
+                    logger.info(f"CAD analysis successful for Design ID: {design_id}. Status set to ANALYSIS_COMPLETE.")
 
-                design.save() # Save changes to status and geometric_data
+                file_downloaded_and_processed_successfully = True # If it reached here without major S3/parsing lib error for STL.
+                                                                # For STEP/IGES, status might already be FAILED.
 
-            logger.info(f"Successfully processed Design ID: {design_id}. Final status: {design.status}")
-            return f"Successfully processed Design ID: {design_id}. Final status: {design.status}"
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    logger.error(f"S3 file not found for Design ID {design_id}: s3://{settings.AWS_STORAGE_BUCKET_NAME}/{design.s3_file_key}")
+                    design.status = DesignStatus.ANALYSIS_FAILED
+                    design.geometric_data = {"error": "S3 file not found."}
+                else:
+                    logger.error(f"S3 ClientError downloading/processing file for Design ID {design_id}: {e}")
+                    # For other S3 errors, let Celery retry mechanism handle it.
+                    # Status not changed here, will be PENDING_ANALYSIS for retry.
+                    raise self.retry(exc=e) from e
+            except ValueError as ve: # Catch parsing/analysis errors from perform_stl_analysis or other validation
+                logger.error(f"CAD analysis failed for Design ID {design_id}: {ve}")
+                design.status = DesignStatus.ANALYSIS_FAILED
+                design.geometric_data = {"error": f"Analysis failed: {str(ve)}"}
+            except RuntimeError as rte: # Catch library availability errors
+                 logger.error(f"CAD analysis runtime error for Design ID {design_id}: {rte}")
+                 design.status = DesignStatus.ANALYSIS_FAILED
+                 design.geometric_data = {"error": f"Analysis runtime error: {str(rte)}"}
+            except Exception as analysis_exc: # Catch any other unexpected analysis errors
+                logger.error(f"Unexpected CAD analysis error for Design ID {design_id}: {analysis_exc}")
+                design.status = DesignStatus.ANALYSIS_FAILED
+                design.geometric_data = {"error": f"Unexpected analysis error: {str(analysis_exc)}"}
+            finally:
+                if os.path.exists(local_file_path):
+                    os.remove(local_file_path)
+                # Save design status changes made within this try/except/finally block
+                # This ensures status is updated even if only part of the processing failed (e.g. STEP validation vs full STL analysis)
+                if not file_downloaded_and_processed_successfully or design.status == DesignStatus.ANALYSIS_FAILED :
+                    logger.info(f"Saving Design {design_id} with status {design.status} due to processing outcome or error.")
+                design.save()
+
+            if design.status == DesignStatus.ANALYSIS_COMPLETE:
+                logger.info(f"Successfully processed Design ID: {design_id}. Final status: {design.status}")
+                return f"Successfully processed Design ID: {design_id}. Final status: {design.status}"
+            else: # Handles ANALYSIS_FAILED or any other non-COMPLETE status set during processing
+                logger.warning(f"Finished processing Design ID: {design_id}, but final status is {design.status}. Error: {design.geometric_data.get('error', 'Unknown error during analysis.')}")
+                return f"CAD analysis failed for Design ID {design_id}: {design.geometric_data.get('error', 'Unknown error during analysis.')}"
 
     except Design.DoesNotExist:
         logger.error(f"Design ID {design_id} not found in database for analysis.")
         # No retry if design doesn't exist
         return f"Failed: Design {design_id} not found."
-    except Exception as e:
-        logger.error(f"Unexpected error in analyze_cad_file task for Design ID {design_id}: {e}")
-        # Retry for other unexpected errors
-        # The 'self' (bound task instance) is used for retry
-        # Ensure that the design status reflects a pending or error state if retrying
+    except Exception as e: # This is the outermost catch-all for unexpected errors before or after the atomic block
+        logger.error(f"Outer unexpected error in analyze_cad_file task for Design ID {design_id}: {e}")
+        # Attempt to set a generic error status on the design if it exists and task is retrying
         try:
-            # Attempt to update status to reflect error before retry, if possible
             design_to_update = Design.objects.get(id=design_id)
-            if design_to_update.status not in [DesignStatus.ANALYSIS_COMPLETE, DesignStatus.ANALYSIS_FAILED]:
-                 # Update to ANALYSIS_FAILED or keep PENDING_ANALYSIS with an error note if desired
-                pass # For now, rely on retry and eventual failure if persistent
+            if design_to_update.status == DesignStatus.PENDING_ANALYSIS:
+                # Only update if it's still pending, to avoid overwriting a more specific FAILED status
+                design_to_update.status = DesignStatus.ANALYSIS_FAILED
+                design_to_update.geometric_data = {"error": f"Task-level error: {str(e)}"}
+                design_to_update.save()
         except Design.DoesNotExist:
-            pass # Design was deleted or never existed
+            pass
         raise self.retry(exc=e) from e

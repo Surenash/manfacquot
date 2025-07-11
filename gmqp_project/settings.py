@@ -19,11 +19,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+import os # Ensure os is imported for getenv
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-m(rdfq5a-grhp9nysp8wwvt-babcn2&0l-%p#qi3re=o)0yeta"
+# Load the SECRET_KEY from an environment variable.
+# Provide a default for local development only if DEBUG is True.
+# In production, this variable MUST be set.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-m(rdfq5a-grhp9nysp8wwvt-babcn2&0l-%p#qi3re=o)0yeta_development_only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Load DEBUG status from an environment variable, defaulting to False for safety.
+# 'True' or '1' will enable DEBUG mode.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 't')
+
+import sys # Import sys to check argv
+
+# If DEBUG is False AND we are NOT running tests, ensure SECRET_KEY is not the default development one.
+if not DEBUG and 'test' not in sys.argv and SECRET_KEY == 'django-insecure-m(rdfq5a-grhp9nysp8wwvt-babcn2&0l-%p#qi3re=o)0yeta_development_only':
+    raise ValueError("ERROR: DJANGO_SECRET_KEY must be set in production (when DEBUG is False and not running tests).")
 
 ALLOWED_HOSTS = []
 
@@ -79,7 +92,7 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": False,
 
     "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY, # In production, use a strong, unique key from env variables
+    "SIGNING_KEY": SECRET_KEY, # Now correctly uses the SECRET_KEY loaded from env or default
     "VERIFYING_KEY": None,
     "AUDIENCE": None,
     "ISSUER": None,
@@ -199,19 +212,31 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# AWS S3 Settings (placeholders - use environment variables in production)
-# These would ideally be loaded using a library like django-environ
-import os
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'YOUR_AWS_ACCESS_KEY_ID_HERE')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'YOUR_AWS_SECRET_ACCESS_KEY_HERE')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'your-gmqp-design-files-bucket')
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1') # e.g., 'us-east-1'
-AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', None) # For MinIO/LocalStack, e.g., 'http://localhost:9000'
+# AWS S3 Settings
+# IMPORTANT: In production, these MUST be set via environment variables.
+# For local development, if these are not set, features requiring S3 might not work
+# or might use mock services if configured (e.g., LocalStack via AWS_S3_ENDPOINT_URL).
+
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'gmqp-default-dev-bucket') # Default for local dev if needed
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1') # Example region
+AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL') # e.g., 'http://localhost:9000' for LocalStack/MinIO
+
+# Ensure critical AWS settings are provided if not in DEBUG mode, not running tests, and no endpoint_url is set (i.e., targeting real AWS)
+if not DEBUG and 'test' not in sys.argv and not AWS_S3_ENDPOINT_URL:
+    if not AWS_ACCESS_KEY_ID:
+        raise ValueError("ERROR: AWS_ACCESS_KEY_ID must be set in production (when DEBUG is False, not running tests, and no S3 endpoint URL).")
+    if not AWS_SECRET_ACCESS_KEY:
+        raise ValueError("ERROR: AWS_SECRET_ACCESS_KEY must be set in production (when DEBUG is False, not running tests, and no S3 endpoint URL).")
+    if not AWS_STORAGE_BUCKET_NAME or AWS_STORAGE_BUCKET_NAME == 'gmqp-default-dev-bucket':
+        raise ValueError("ERROR: AWS_STORAGE_BUCKET_NAME must be set to a valid bucket name in production (when DEBUG is False, not running tests, and no S3 endpoint URL).")
+
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_PRESIGNED_URL_EXPIRATION = 3600  # seconds (1 hour)
 
 # Path in the bucket where design files will be stored
-AWS_S3_DESIGNS_UPLOAD_PREFIX = os.environ.get('AWS_S3_DESIGNS_UPLOAD_PREFIX','uploads/designs/')
+AWS_S3_DESIGNS_UPLOAD_PREFIX = os.environ.get('AWS_S3_DESIGNS_UPLOAD_PREFIX', 'uploads/designs/')
 
 
 # Celery Configuration Options
