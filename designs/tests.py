@@ -151,6 +151,16 @@ class DesignAPITests(APITestCase):
         self.assertIn("error", response.data)
         self.assertEqual(response.data["error"], "fileName is required.")
 
+    def test_generate_presigned_url_by_manufacturer_forbidden(self):
+        """
+        Test that a user with the 'manufacturer' role cannot get a pre-signed URL.
+        """
+        self._login_user(self.manufacturer_user_data['email'], self.manufacturer_user_data['password'])
+        url = reverse('design_upload_url')
+        data = {"fileName": "test_by_manufacturer.stl", "fileType": "model/stl"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     # --- Test Design CRUD ---
     @patch('designs.tasks.analyze_cad_file.delay') # Mock the celery task's delay method
     def test_create_design_success(self, mock_analyze_task_delay):

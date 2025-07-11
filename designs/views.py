@@ -18,15 +18,20 @@ class DesignUploadURLView(APIView):
     Request Body: { "fileName": "part_v1.stl", "fileType": "model/stl" }
     Response: { "uploadUrl": "...", "s3Key": "..." }
     """
-    permission_classes = [IsAuthenticated] # Only authenticated users (customers) can get an upload URL
+    permission_classes = [IsAuthenticated] # Base permission: user must be authenticated.
+                                        # Role check is now handled by IsCustomerUser permission class.
 
     # Optional: Add role check if only 'customer' role should upload
-    # def check_permissions(self, request):
-    #     super().check_permissions(request)
-    #     if request.user.role != UserRole.CUSTOMER:
-    #         self.permission_denied(
-    #             request, message="Only customers can upload designs."
-    #         )
+    # The IsCustomerUser permission class can be added to permission_classes instead of overriding check_permissions.
+    # For direct override:
+    def check_permissions(self, request):
+        super().check_permissions(request) # Checks IsAuthenticated
+        # Import UserRole here or at the top of the file if not already done
+        from accounts.models import UserRole
+        if request.user.role != UserRole.CUSTOMER:
+            self.permission_denied(
+                request, message="Only users with the 'customer' role can obtain an upload URL."
+            )
 
     def post(self, request, *args, **kwargs):
         file_name = request.data.get('fileName')
