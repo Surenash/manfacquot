@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
+import ModelViewer from './components/ModelViewer';
 
 // --- API Client ---
 const API_BASE_URL = '/api'; // Using relative URL for proxying
@@ -886,40 +887,8 @@ const UploadPage = ({ onProceedToLogin, onNavigate }) => {
                 <div style={styles.uploadLayout}>
                     <div style={styles.uploadDropzoneWrapper}>
                         <label style={styles.label}>CAD File (.stl, .step, .iges)</label>
-                        <div
-                            style={dropzoneStyle}
-                            onDragEnter={e => e.stopPropagation()}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                style={{ display: 'none' }}
-                                accept=".stl,.step,.iges,.stp,.igs"
-                            />
-                            {file ? (
-                                <div style={styles.uploadFileInfo}>
-                                    <FileIcon />
-                                    <p style={styles.uploadFileName}>{file.name}</p>
-                                    <p style={{fontSize: '12px', color: '#6B7280'}}>{(file.size / 1024).toFixed(2)} KB</p>
-                                    <CtaButton 
-                                        text="Clear"
-                                        onClick={clearFile}
-                                        type="button"
-                                        primary={false} 
-                                     />
-                                </div>
-                            ) : (
-                                <>
-                                    <UploadIcon />
-                                    <p style={{color: '#4B5563', fontWeight: 500}}>Drag & drop file here</p>
-                                    <p style={{color: '#6B7280', fontSize: '14px'}}>or click to browse</p>
-                                </>
-                            )}
+                        <div className="h-96">
+                            <ModelViewer />
                         </div>
                         {fileTypeWarning && (
                             <div style={styles.fileTypeWarning}>
