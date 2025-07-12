@@ -22,9 +22,9 @@ class ReviewSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'customer_display_name', 'manufacturer_display_name', 'created_at', 'updated_at']
-        # 'customer' is often set implicitly from request.user.
-        # 'manufacturer' is typically part of the URL or payload for creation.
+        read_only_fields = ['id', 'customer', 'manufacturer', 'customer_display_name', 'manufacturer_display_name', 'created_at', 'updated_at']
+        # 'customer' is set from request.user in the view/serializer.
+        # 'manufacturer' is set from the URL kwarg in the view.
 
     def get_customer_display_name(self, obj):
         return obj.customer.company_name or obj.customer.email
@@ -78,8 +78,27 @@ class ReviewSerializer(serializers.ModelSerializer):
         # This check is primarily for creation (not self.instance).
         if not self.instance:
             customer = request.user if request else data.get('customer')
-            manufacturer = data.get('manufacturer')
+
+            # Get manufacturer from the URL kwargs passed in context by the view
+            view = self.context.get('view')
+            manufacturer_id = view.kwargs.get('manufacturer_id') if view else None
+            manufacturer = User.objects.get(id=manufacturer_id) if manufacturer_id else data.get('manufacturer')
+
             order_id = data.get('order_id')
+
+            # If an order_id is provided, validate that the order belongs to the customer
+            if order_id and customer:
+                from orders.models import Order
+                try:
+                    order = Order.objects.get(id=order_id)
+                    if order.customer != customer:
+                        raise serializers.ValidationError({"order_id": "This order does not belong to the current user."})
+                    # Optional: Check if the manufacturer being reviewed matches the order's manufacturer
+                    if order.manufacturer != manufacturer:
+                        raise serializers.ValidationError({"manufacturer": "The manufacturer being reviewed does not match the manufacturer on the order."})
+                except Order.DoesNotExist:
+                    raise serializers.ValidationError({"order_id": "The specified order does not exist."})
+
 
             query = Review.objects.filter(customer=customer, manufacturer=manufacturer)
             if order_id:

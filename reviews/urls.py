@@ -3,7 +3,7 @@
 from django.urls import path
 # from . import views # Assuming views will be added later
 
-app_name = "reviews"
+# app_name = "reviews" # This is not needed as these URLs are included under accounts
 
 urlpatterns = [
     # Example:
@@ -13,7 +13,10 @@ urlpatterns = [
 
 # For /api/manufacturers/{manufacturer_id}/reviews/ type URLs mentioned in AGENTS.md
 # These might be included by accounts.urls or a top-level router.
+from . import views
+
 # This list is for review-specific direct URLs if any.
+# This list will be included by accounts.urls under /api/manufacturers/{manufacturer_id}/reviews/
 manufacturer_specific_review_urlpatterns = [
-    # path('', views.ManufacturerReviewListView.as_view(), name='manufacturer-review-list'),
+    path('', views.ReviewListCreateView.as_view(), name='manufacturer-review-list-create'),
 ]

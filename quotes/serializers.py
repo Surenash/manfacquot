@@ -17,7 +17,7 @@ class QuoteSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "design", "manufacturer", "created_at", "updated_at"]
 
     # Potentially add more detailed fields or nested serializers as needed
     # e.g., for manufacturer details or design details if not just IDs.
@@ -33,3 +33,19 @@ class QuoteSerializer(serializers.ModelSerializer):
         if value < 0: # Lead time can be 0 for immediate availability
             raise serializers.ValidationError("Estimated lead time cannot be negative.")
         return value
+
+    def create(self, validated_data):
+        """
+        Set the manufacturer to the currently authenticated user.
+        """
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            raise serializers.ValidationError("User context is required to create a quote.")
+
+        # Ensure the user is a manufacturer
+        from accounts.models import UserRole
+        if request.user.role != UserRole.MANUFACTURER:
+            raise serializers.ValidationError("Only manufacturers can create quotes.")
+
+        validated_data['manufacturer'] = request.user
+        return super().create(validated_data)
