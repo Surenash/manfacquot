@@ -627,4 +627,356 @@ const styles: { [key: string]: React.CSSProperties } = {
         alignItems: 'center',
         justifyContent: 'center',
         border: '1px solid transparent',
-        transition:
+        transition: 'all 0.2s ease',
+        cursor: 'pointer',
+    },
+    buttonPrimary: {
+        backgroundColor: '#2563EB',
+        color: '#FFFFFF',
+        borderColor: '#2563EB',
+    },
+    buttonPrimaryHover: {
+        backgroundColor: '#1D4ED8',
+        borderColor: '#1D4ED8',
+    },
+    buttonSecondary: {
+        backgroundColor: 'transparent',
+        color: '#2563EB',
+        borderColor: '#E5E7EB',
+    },
+    buttonSecondaryHover: {
+        backgroundColor: '#F3F4F6',
+        borderColor: '#D1D5DB',
+    },
+    // Hero Section
+    hero: {
+        padding: '80px 0',
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%)',
+    },
+    heroContent: {
+        maxWidth: '800px',
+        margin: '0 auto',
+    },
+    heroTitle: {
+        fontSize: '48px',
+        fontWeight: 'bold',
+        marginBottom: '24px',
+        lineHeight: '1.2',
+        color: '#1F2937',
+    },
+    heroSubtitle: {
+        fontSize: '20px',
+        color: '#4B5563',
+        marginBottom: '40px',
+        lineHeight: '1.6',
+    },
+    heroActions: {
+        display: 'flex',
+        gap: '16px',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+    },
+    // Sections
+    howItWorks: {
+        padding: '80px 0',
+        backgroundColor: '#FFFFFF',
+    },
+    features: {
+        padding: '80px 0',
+        backgroundColor: '#F8FAFC',
+    },
+    sectionTitle: {
+        fontSize: '36px',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: '48px',
+        color: '#1F2937',
+    },
+    stepsGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '40px',
+        marginTop: '48px',
+    },
+    step: {
+        textAlign: 'center',
+        padding: '32px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+    },
+    stepTitle: {
+        fontSize: '24px',
+        fontWeight: 'bold',
+        marginBottom: '16px',
+        marginTop: '16px',
+        color: '#1F2937',
+    },
+    stepText: {
+        fontSize: '16px',
+        color: '#4B5563',
+        lineHeight: '1.6',
+    },
+    featuresGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: '40px',
+        marginTop: '48px',
+    },
+    featureCard: {
+        padding: '40px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+    },
+    featureTitle: {
+        fontSize: '24px',
+        fontWeight: 'bold',
+        marginBottom: '24px',
+        color: '#1F2937',
+    },
+    featureList: {
+        listStyle: 'none',
+        padding: 0,
+        margin: 0,
+    },
+    // Footer
+    footer: {
+        padding: '40px 0',
+        backgroundColor: '#1F2937',
+        color: '#FFFFFF',
+        marginTop: 'auto',
+    },
+    footerContent: {
+        textAlign: 'center',
+    },
+    footerLinks: {
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '24px',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+    },
+    footerLink: {
+        color: '#D1D5DB',
+        textDecoration: 'none',
+        fontSize: '14px',
+    },
+    footerCopyright: {
+        fontSize: '14px',
+        color: '#9CA3AF',
+    },
+    // Login Page
+    loginPage: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 'calc(100vh - 200px)',
+        padding: '40px 0',
+    },
+    loginContainer: {
+        width: '100%',
+        maxWidth: '400px',
+        padding: '40px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+    },
+    loginTitle: {
+        fontSize: '28px',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: '8px',
+        color: '#1F2937',
+    },
+    loginSubtitle: {
+        fontSize: '16px',
+        textAlign: 'center',
+        color: '#4B5563',
+        marginBottom: '32px',
+    },
+    loginForm: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+    },
+    loginError: {
+        color: '#DC2626',
+        fontSize: '14px',
+        textAlign: 'center',
+        padding: '12px',
+        backgroundColor: '#FEF2F2',
+        borderRadius: '6px',
+        border: '1px solid #FECACA',
+    },
+    formGroup: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+    },
+    label: {
+        fontSize: '14px',
+        fontWeight: '500',
+        color: '#374151',
+    },
+    input: {
+        padding: '12px',
+        border: '1px solid #D1D5DB',
+        borderRadius: '6px',
+        fontSize: '16px',
+        transition: 'border-color 0.2s',
+    },
+    loginLinks: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: '24px',
+        gap: '16px',
+        flexWrap: 'wrap',
+    },
+    loginLink: {
+        fontSize: '14px',
+        color: '#2563EB',
+        textDecoration: 'none',
+    },
+    // Dashboard
+    dashboardContainer: {
+        padding: '40px 24px',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        width: '100%',
+    },
+    dashboardHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '32px',
+        flexWrap: 'wrap',
+        gap: '16px',
+    },
+    dashboardTitle: {
+        fontSize: '32px',
+        fontWeight: 'bold',
+        color: '#1F2937',
+    },
+    tableContainer: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+        overflow: 'hidden',
+    },
+    designTable: {
+        width: '100%',
+        borderCollapse: 'collapse',
+    },
+    tableHead: {
+        backgroundColor: '#F9FAFB',
+    },
+    tableHeaderCell: {
+        padding: '16px',
+        textAlign: 'left',
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#374151',
+        borderBottom: '1px solid #E5E7EB',
+    },
+    tableBody: {
+        backgroundColor: '#FFFFFF',
+    },
+    tableRow: {
+        borderBottom: '1px solid #F3F4F6',
+    },
+    tableCell: {
+        padding: '16px',
+        fontSize: '14px',
+        color: '#1F2937',
+    },
+    actionsCell: {
+        display: 'flex',
+        gap: '8px',
+        alignItems: 'center',
+    },
+    iconButton: {
+        padding: '8px',
+        border: 'none',
+        backgroundColor: 'transparent',
+        cursor: 'pointer',
+        borderRadius: '4px',
+        color: '#6B7280',
+        transition: 'all 0.2s',
+    },
+    iconButtonDanger: {
+        color: '#DC2626',
+    },
+    statusBadge: {
+        padding: '4px 12px',
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '500',
+        textTransform: 'capitalize',
+    },
+    statusComplete: {
+        backgroundColor: '#D1FAE5',
+        color: '#065F46',
+    },
+    statusPending: {
+        backgroundColor: '#FEF3C7',
+        color: '#92400E',
+    },
+    statusFailed: {
+        backgroundColor: '#FEE2E2',
+        color: '#991B1B',
+    },
+    // Modal
+    modalBackdrop: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        padding: '32px',
+        width: '100%',
+        maxWidth: '500px',
+        margin: '20px',
+        maxHeight: '90vh',
+        overflow: 'auto',
+    },
+    modalTitle: {
+        fontSize: '24px',
+        fontWeight: 'bold',
+        marginBottom: '24px',
+        color: '#1F2937',
+    },
+    modalActions: {
+        display: 'flex',
+        gap: '12px',
+        justifyContent: 'flex-end',
+        marginTop: '24px',
+    },
+    fileUploadLabel: {
+        display: 'block',
+        padding: '12px',
+        border: '2px dashed #D1D5DB',
+        borderRadius: '6px',
+        textAlign: 'center',
+        cursor: 'pointer',
+        transition: 'border-color 0.2s',
+        color: '#6B7280',
+    },
+    fileUploadInput: {
+        display: 'none',
+    },
+};
+
+// --- Render App ---
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+root.render(<App />);
