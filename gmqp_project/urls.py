@@ -16,7 +16,8 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from .views import index_view # Import the view for serving the frontend
 
 from accounts.urls import manufacturer_urlpatterns # Import the new list
 
@@ -34,4 +35,7 @@ urlpatterns = [
 
     # Order endpoints
     path("api/orders/", include("orders.urls")),
+
+    # Catch-all for non-API routes to serve the React app
+    re_path(r'^(?!api/).*$', index_view, name='index'),
 ]
