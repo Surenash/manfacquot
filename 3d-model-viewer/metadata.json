@@ -1,0 +1,5 @@
+{
+  "name": "3D Model Viewer",
+  "description": "An interactive 3D viewer application to upload, view, and manipulate 3D models (STL, OBJ, GLTF, GLB) with different camera presets.",
+  "requestFramePermissions": []
+}
