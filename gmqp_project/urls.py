@@ -16,7 +16,8 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from django.views.generic import TemplateView
 
 from accounts.urls import manufacturer_urlpatterns # Import the new list
 
@@ -34,4 +35,5 @@ urlpatterns = [
 
     # Order endpoints
     path("api/orders/", include("orders.urls")),
+    re_path(r'^(?!api/).*$', TemplateView.as_view(template_name='index.html')),
 ]
