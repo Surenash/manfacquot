@@ -1,5 +1,9 @@
 # GMQP - Global Manufacturing Quotation Platform
 
+visit 
+https://app-gg-v1-1-554903121010.us-west1.run.app
+https://app-gg-v1-1-tams626wua-uw.a.run.app
+
 This project is a web-based platform to automate the process of obtaining manufacturing quotes for custom designs.
 
 ## Technical Overview
